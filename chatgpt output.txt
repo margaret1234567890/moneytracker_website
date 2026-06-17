@@ -1,0 +1,129 @@
+Absolutely. You can add a **"Current Balance"** box that shows how much money you currently have based on:
+
+**Current Balance = Total Income − Total Expenses**
+
+### 1. Add this summary box
+
+Inside the `.summary` section, add:
+
+```html
+<div class="summary-box" style="background:#6a1b9a;">
+    <h3>Current Balance</h3>
+    <h2 id="balanceTotal">$0</h2>
+</div>
+```
+
+For example:
+
+```html
+<div class="card summary">
+
+    <div class="summary-box income">
+        <h3>Income</h3>
+        <h2 id="incomeTotal">$0</h2>
+    </div>
+
+    <div class="summary-box expense">
+        <h3>Expenses</h3>
+        <h2 id="expenseTotal">$0</h2>
+    </div>
+
+    <div class="summary-box net">
+        <h3>Net Savings</h3>
+        <h2 id="netTotal">$0</h2>
+    </div>
+
+    <div class="summary-box" style="background:#6a1b9a;">
+        <h3>Current Balance</h3>
+        <h2 id="balanceTotal">$0</h2>
+    </div>
+
+</div>
+```
+
+---
+
+### 2. Replace your `render()` calculations
+
+Find:
+
+```javascript
+let income = 0;
+let expenses = 0;
+```
+
+and change it to:
+
+```javascript
+let income = 0;
+let expenses = 0;
+
+let totalIncome = 0;
+let totalExpenses = 0;
+```
+
+Then inside the `transactions.forEach(...)` loop, add:
+
+```javascript
+if(t.type === "income"){
+    totalIncome += t.amount;
+}else{
+    totalExpenses += t.amount;
+}
+```
+
+---
+
+### 3. Update the balance display
+
+Near the bottom of `render()`, after:
+
+```javascript
+document.getElementById("netTotal")
+    .textContent =
+    "$" + (income-expenses).toFixed(2);
+```
+
+add:
+
+```javascript
+const balance = totalIncome - totalExpenses;
+
+document.getElementById("balanceTotal")
+    .textContent =
+    "$" + balance.toFixed(2);
+```
+
+---
+
+### Optional: Start with your real bank amount
+
+If you want the tracker to show your actual money rather than starting from $0, add:
+
+```javascript
+let startingBalance = 5000;
+```
+
+Then change:
+
+```javascript
+const balance = totalIncome - totalExpenses;
+```
+
+to:
+
+```javascript
+const balance =
+    startingBalance +
+    totalIncome -
+    totalExpenses;
+```
+
+Now the website will show:
+
+* 💰 Income this month
+* 💸 Expenses this month
+* 📈 Net savings this month
+* 🏦 Current Balance (how much money you have total)
+
+which is usually the most useful number to see at a glance.
