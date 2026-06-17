@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monthly Money Tracker</title>
+
+<style>
+body{
+    font-family:Arial,sans-serif;
+    background:#f5f7fa;
+    margin:0;
+    padding:20px;
+}
+
+.container{
+    max-width:900px;
+    margin:auto;
+}
+
+h1{
+    text-align:center;
+    color:#333;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,.1);
+    margin-bottom:20px;
+}
+
+.form-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
+input, select, button{
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #ccc;
+}
+
+button{
+    background:#4CAF50;
+    color:white;
+    border:none;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#45a049;
+}
+
+.summary{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:15px;
+}
+
+.summary-box{
+    padding:15px;
+    border-radius:10px;
+    text-align:center;
+    color:white;
+}
+
+.income{
+    background:#2e7d32;
+}
+
+.expense{
+    background:#c62828;
+}
+
+.net{
+    background:#1565c0;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th,td{
+    padding:10px;
+    border-bottom:1px solid #ddd;
+}
+
+th{
+    background:#eee;
+}
+
+canvas{
+    width:100%;
+    max-height:300px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>💰 Monthly Money Tracker</h1>
+
+<div class="card">
+    <div class="form-row">
+        <input type="date" id="date">
+        <input type="text" id="description" placeholder="Description">
+        <input type="number" id="amount" placeholder="Amount">
+        <select id="type">
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+        </select>
+        <button onclick="addTransaction()">Add</button>
+    </div>
+</div>
+
+<div class="card summary">
+    <div class="summary-box income">
+        <h3>Income</h3>
+        <h2 id="incomeTotal">$0</h2>
+    </div>
+
+    <div class="summary-box expense">
+        <h3>Expenses</h3>
+        <h2 id="expenseTotal">$0</h2>
+    </div>
+
+    <div class="summary-box net">
+        <h3>Net Savings</h3>
+        <h2 id="netTotal">$0</h2>
+    </div>
+</div>
+
+<div class="card">
+    <h2>This Month</h2>
+    <canvas id="chart" width="800" height="300"></canvas>
+</div>
+
+<div class="card">
+    <h2>Transactions</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="transactionTable"></tbody>
+    </table>
+</div>
+
+</div>
+
+<script>
+
+let transactions =
+JSON.parse(localStorage.getItem("moneyTracker")) || [];
+
+function saveData(){
+    localStorage.setItem(
+        "moneyTracker",
+        JSON.stringify(transactions)
+    );
+}
+
+function addTransaction(){
+
+    const date =
+        document.getElementById("date").value;
+
+    const description =
+        document.getElementById("description").value;
+
+    const amount =
+        parseFloat(document.getElementById("amount").value);
+
+    const type =
+        document.getElementById("type").value;
+
+    if(!date || !description || !amount){
+        alert("Please fill out all fields.");
+        return;
+    }
+
+    transactions.push({
+        id: Date.now(),
+        date,
+        description,
+        amount,
+        type
+    });
+
+    saveData();
+    render();
+
+    document.getElementById("description").value="";
+    document.getElementById("amount").value="";
+}
+
+function deleteTransaction(id){
+    transactions =
+        transactions.filter(t => t.id !== id);
+
+    saveData();
+    render();
+}
+
+function render(){
+
+    const table =
+        document.getElementById("transactionTable");
+
+    table.innerHTML="";
+
+    const now = new Date();
+    const currentMonth =
+        now.getFullYear() + "-" +
+        String(now.getMonth()+1).padStart(2,"0");
+
+    let income = 0;
+    let expenses = 0;
+
+    transactions.forEach(t=>{
+
+        const month = t.date.slice(0,7);
+
+        if(month === currentMonth){
+            if(t.type==="income"){
+                income += t.amount;
+            }else{
+                expenses += t.amount;
+            }
+        }
+
+        table.innerHTML += `
+        <tr>
+            <td>${t.date}</td>
+            <td>${t.description}</td>
+            <td>${t.type}</td>
+            <td>$${t.amount.toFixed(2)}</td>
+            <td>
+                <button onclick="deleteTransaction(${t.id})">
+                ❌
+                </button>
+            </td>
+        </tr>`;
+    });
+
+    document.getElementById("incomeTotal")
+        .textContent = "$" + income.toFixed(2);
+
+    document.getElementById("expenseTotal")
+        .textContent = "$" + expenses.toFixed(2);
+
+    document.getElementById("netTotal")
+        .textContent =
+        "$" + (income-expenses).toFixed(2);
+
+    drawChart(income, expenses);
+}
+
+function drawChart(income, expenses){
+
+    const canvas =
+        document.getElementById("chart");
+
+    const ctx =
+        canvas.getContext("2d");
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    const max =
+        Math.max(income, expenses, 1);
+
+    const scale =
+        180 / max;
+
+    const incomeHeight =
+        income * scale;
+
+    const expenseHeight =
+        expenses * scale;
+
+    ctx.fillStyle="#2e7d32";
+    ctx.fillRect(
+        180,
+        250-incomeHeight,
+        120,
+        incomeHeight
+    );
+
+    ctx.fillStyle="#c62828";
+    ctx.fillRect(
+        450,
+        250-expenseHeight,
+        120,
+        expenseHeight
+    );
+
+    ctx.fillStyle="#000";
+    ctx.font="18px Arial";
+
+    ctx.fillText("Income",195,280);
+    ctx.fillText("Expenses",450,280);
+
+    ctx.fillText(
+        "$"+income.toFixed(0),
+        195,
+        240-incomeHeight
+    );
+
+    ctx.fillText(
+        "$"+expenses.toFixed(0),
+        450,
+        240-expenseHeight
+    );
+}
+
+render();
+
+</script>
+
+</body>
+</html>
