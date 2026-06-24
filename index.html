@@ -23,6 +23,22 @@ h1{
     color:#333;
 }
 
+	.progress-container{
+    width:100%;
+    height:30px;
+    background:#ddd;
+    border-radius:20px;
+    overflow:hidden;
+    margin-top:15px;
+}
+
+.progress-bar{
+    height:100%;
+    width:0%;
+    background:#4CAF50;
+    transition:width .4s ease;
+}
+
 .card{
     background:white;
     padding:20px;
@@ -58,6 +74,7 @@ button:hover{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
     gap:15px;
+	
 }
 
 .summary-box{
@@ -123,16 +140,52 @@ canvas{
         <h3>Income</h3>
         <h2 id="incomeTotal">$0</h2>
     </div>
+	
+		<div class="card">
+    <h2>🎯 Savings Goal</h2>
+
+    <input
+        type="number"
+        id="goalInput"
+        placeholder="Enter savings goal"
+    >
+
+    <button onclick="saveGoal()">
+        Save Goal
+    </button>
+
+    <h3 id="goalText">
+        Goal: $0
+    </h3>
+
+    <div class="progress-container">
+        <div id="progressBar" class="progress-bar"></div>
+    </div>
+
+    <h3 id="progressText">
+        0%
+    </h3>
+</div>
+
 
     <div class="summary-box expense">
         <h3>Expenses</h3>
         <h2 id="expenseTotal">$0</h2>
     </div>
+	<div class="summary-box" style="background:#6a1b9a;">
+    <h3>Current Balance</h3>
+    <h2 id="balanceTotal">$0</h2>
+	</div>
 
     <div class="summary-box net">
         <h3>Net Savings</h3>
         <h2 id="netTotal">$0</h2>
     </div>
+</div>
+
+<div class="card">
+    <h2>📈 Balance History</h2>
+    <canvas id="lineChart" width="800" height="300"></canvas>
 </div>
 
 <div class="card">
@@ -170,6 +223,24 @@ function saveData(){
     );
 }
 
+let savingsGoal =
+    Number(localStorage.getItem("savingsGoal")) || 0;
+
+function saveGoal(){
+
+    savingsGoal =
+        Number(
+            document.getElementById("goalInput").value
+        );
+
+    localStorage.setItem(
+        "savingsGoal",
+        savingsGoal
+    );
+
+    render();
+}
+
 function addTransaction(){
 
     const date =
@@ -204,6 +275,8 @@ function addTransaction(){
     document.getElementById("amount").value="";
 }
 
+
+
 function deleteTransaction(id){
     transactions =
         transactions.filter(t => t.id !== id);
@@ -224,8 +297,11 @@ function render(){
         now.getFullYear() + "-" +
         String(now.getMonth()+1).padStart(2,"0");
 
-    let income = 0;
-    let expenses = 0;
+let income = 0;
+let expenses = 0;
+
+let totalIncome = 0;
+let totalExpenses = 0;
 
     transactions.forEach(t=>{
 
@@ -238,6 +314,11 @@ function render(){
                 expenses += t.amount;
             }
         }
+		if(t.type === "income"){
+			totalIncome += t.amount;
+		}else{
+			totalExpenses += t.amount;
+		}
 
         table.innerHTML += `
         <tr>
@@ -263,7 +344,37 @@ function render(){
         .textContent =
         "$" + (income-expenses).toFixed(2);
 
-    drawChart(income, expenses);
+	const balance = totalIncome - totalExpenses;
+
+document.getElementById("goalText")
+    .textContent =
+    "Goal: $" + savingsGoal.toFixed(2);
+
+let percent = 0;
+
+if(savingsGoal > 0){
+    percent =
+        Math.min(
+            (balance / savingsGoal) * 100,
+            100
+        );
+}
+
+document.getElementById("progressBar")
+    .style.width = percent + "%";
+
+document.getElementById("progressText")
+    .textContent =
+    percent.toFixed(1) + "% Complete";
+
+	document.getElementById("balanceTotal")
+    .textContent =
+    "$" + balance.toFixed(2);
+
+   drawChart(income, expenses);
+   
+   drawLineChart();
+   
 }
 
 function drawChart(income, expenses){
@@ -321,6 +432,122 @@ function drawChart(income, expenses){
         450,
         240-expenseHeight
     );
+}
+
+function drawLineChart(){
+
+    const canvas =
+        document.getElementById("lineChart");
+    if(!canvas) return;
+    const ctx =
+        canvas.getContext("2d");
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    const monthlyBalances = {};
+
+    let runningBalance = 0;
+
+    const sorted =
+        [...transactions].sort(
+            (a,b)=>
+            new Date(a.date) -
+            new Date(b.date)
+        );
+
+    sorted.forEach(t=>{
+
+        if(t.type==="income"){
+            runningBalance += t.amount;
+        }else{
+            runningBalance -= t.amount;
+        }
+
+        const month =
+            t.date.slice(0,7);
+
+        monthlyBalances[month] =
+            runningBalance;
+    });
+
+    const labels =
+        Object.keys(monthlyBalances);
+
+    const values =
+        Object.values(monthlyBalances);
+
+    if(values.length < 2) return;
+
+    const max =
+        Math.max(...values);
+
+    const min =
+        Math.min(...values);
+
+    const padding = 50;
+
+    ctx.beginPath();
+
+    values.forEach((value,index)=>{
+
+        const x =
+            padding +
+            (index * (
+                (canvas.width-padding*2) /
+                (values.length-1)
+            ));
+
+        const y =
+            canvas.height-padding -
+            ((value-min)/(max-min || 1))
+            * (canvas.height-padding*2);
+
+        if(index===0){
+            ctx.moveTo(x,y);
+        }else{
+            ctx.lineTo(x,y);
+        }
+
+        ctx.fillText(
+            labels[index],
+            x-20,
+            canvas.height-20
+        );
+    });
+
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#1565c0";
+    ctx.stroke();
+
+    values.forEach((value,index)=>{
+
+        const x =
+            padding +
+            (index * (
+                (canvas.width-padding*2) /
+                (values.length-1)
+            ));
+
+        const y =
+            canvas.height-padding -
+            ((value-min)/(max-min || 1))
+            * (canvas.height-padding*2);
+
+        ctx.beginPath();
+        ctx.arc(x,y,5,0,Math.PI*2);
+        ctx.fill();
+
+        ctx.fillText(
+            "$" + Math.round(value),
+            x-15,
+            y-10
+        );
+    });
 }
 
 render();
