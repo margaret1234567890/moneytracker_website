@@ -127,3 +127,111 @@ Now the website will show:
 * 🏦 Current Balance (how much money you have total)
 
 which is usually the most useful number to see at a glance.
+Yes. If you're using the Chart.js version, you can add a second dataset that stays at the savings goal amount across all months.
+
+Replace the `datasets` section with this:
+
+```javascript
+datasets: [
+{
+    label: "Balance",
+    data: values,
+    tension: 0.3
+},
+{
+    label: "Savings Goal",
+    data: labels.map(() => savingsGoal),
+    borderDash: [10, 5],
+    pointRadius: 0,
+    tension: 0
+}
+]
+```
+
+Or, in the full chart:
+
+```javascript
+balanceChart = new Chart(ctx, {
+    type: "line",
+    data: {
+        labels: labels,
+        datasets: [
+        {
+            label: "Balance",
+            data: values,
+            tension: 0.3
+        },
+        {
+            label: "Savings Goal",
+            data: labels.map(() => savingsGoal),
+            borderDash: [10, 5],
+            pointRadius: 0,
+            tension: 0
+        }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+```
+
+This creates:
+
+```text
+$2000 ─ ─ ─ ─ ─ ─ 🎯 Goal Line
+       \
+$1500   \
+          \
+$1000      \____ Balance
+              \
+$500
+```
+
+### Make the goal line only appear when a goal exists
+
+Instead of hard-coding the datasets, you can build them dynamically:
+
+```javascript
+const datasets = [
+{
+    label: "Balance",
+    data: values,
+    tension: 0.3
+}
+];
+
+if(savingsGoal > 0){
+    datasets.push({
+        label: "Savings Goal",
+        data: labels.map(() => savingsGoal),
+        borderDash: [10, 5],
+        pointRadius: 0,
+        tension: 0
+    });
+}
+```
+
+Then:
+
+```javascript
+data: {
+    labels,
+    datasets
+}
+```
+
+### Add a label when the goal is reached
+
+You can also highlight points that are above the goal:
+
+```javascript
+pointRadius: values.map(
+    value => value >= savingsGoal ? 8 : 4
+)
+```
+
+This makes it very easy to see where your balance crosses the goal line.
+
+A nice next step would be adding a **projected goal date** that estimates when you'll hit your savings goal based on your average monthly savings rate. That pairs very well with the goal line.
